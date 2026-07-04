@@ -48,7 +48,7 @@ if (file_exists($ruta_datos)) {
 // ---------------------------------------------------------------------------
 
 // URL de la API mock. Hardcodeada apuntando a localhost:5000.
-$url_api_mock = 'http://localhost:5000/repos';
+$url_api_mock = 'http://localhost:5001/repos';
 
 $contexto_api = stream_context_create([
     'http' => [
