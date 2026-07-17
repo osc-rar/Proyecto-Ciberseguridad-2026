@@ -3,8 +3,13 @@
 // Cabeceras de respuesta
 // ---------------------------------------------------------------------------
 
-// Cabecera CORS permisiva: cualquier origen puede consumir este endpoint.
-header("Access-Control-Allow-Origin: *");
+// CORREGIDO (antes: CORS permisivo con "*", OWASP API8:2023 Security
+// Misconfiguration).
+$origenes_permitidos = ['http://localhost:8080', 'http://127.0.0.1:8080'];
+$origen_solicitud = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origen_solicitud, $origenes_permitidos, true)) {
+    header("Access-Control-Allow-Origin: $origen_solicitud");
+}
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Content-Type: application/json; charset=UTF-8");
@@ -34,17 +39,37 @@ if (file_exists($ruta_datos)) {
     if (!empty($lineas)) {
         // Se toma el último registro guardado (el más reciente).
         $ultima_linea = end($lineas);
-
-        // VULNERABLE: json_decode() sobre datos leídos del archivo sin verificar
-        //             la integridad del contenido. Un atacante que logre escribir
-        //             en usuarios.txt podría controlar esta variable.
         $perfil = json_decode($ultima_linea, true);
+
+        // CORREGIDO (antes: "VULNERABLE: json_decode() sobre datos leídos del
+        // archivo sin verificar la integridad del contenido...").
+        if (!perfil_es_valido($perfil)) {
+            $perfil = null;
+        }
     }
 }
 
-// ---------------------------------------------------------------------------
-// [VULNERABILIDAD: Consumo No Seguro de APIs — OWASP API10:2023 / CWE-20]
-// Consulta a la API externa sin validación de integridad de la respuesta.
+// Valida que $perfil tenga exactamente los campos de texto esperados de un
+// registro creado por crear_perfil.php.
+function perfil_es_valido($perfil): bool {
+    if (!is_array($perfil)) {
+        return false;
+    }
+
+    $campos_esperados = [
+        'nombre'          => 'string',
+        'apellido'        => 'string',
+        'bio'             => 'string',
+    ];
+    foreach ($campos_esperados as $campo => $tipo) {
+        if (!array_key_exists($campo, $perfil) || gettype($perfil[$campo]) !== $tipo) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 // ---------------------------------------------------------------------------
 
 // URL de la API mock. Hardcodeada apuntando a localhost:5000.
@@ -58,9 +83,6 @@ $contexto_api = stream_context_create([
     ],
 ]);
 
-// VULNERABLE: se confía ciegamente en que el servicio en localhost:5000 es seguro.
-// Si la API mock fue comprometida (por ejemplo mediante el SSRF de crear_perfil.php
-// o un ataque directo al endpoint /update_repos), este call devolverá datos maliciosos.
 $respuesta_cruda = @file_get_contents($url_api_mock, false, $contexto_api);
 
 if ($respuesta_cruda === false) {
@@ -72,8 +94,6 @@ if ($respuesta_cruda === false) {
     exit;
 }
 
-// VULNERABLE: se decodifica el JSON recibido de la API sin validar su estructura.
-// Un JSON malicioso podría tener campos inesperados que el frontend renderice.
 $repos = json_decode($respuesta_cruda, true);
 
 if (!is_array($repos)) {
@@ -82,29 +102,52 @@ if (!is_array($repos)) {
     exit;
 }
 
-// ---------------------------------------------------------------------------
-// [PUNTO DE INYECCIÓN — CWE-79: Cross-Site Scripting]
-// Los campos del JSON se transfieren al frontend SIN sanitizar.
-// ---------------------------------------------------------------------------
+// CORREGIDO (antes: Consumo No Seguro de APIs, OWASP API10:2023 / CWE-20).
+function repo_es_valido($repo): bool {
+    if (!is_array($repo)) {
+        return false;
+    }
 
-// VULNERABLE: el array $repos se reenvía tal cual al frontend. El campo
-// 'descripcion' de cada repositorio puede contener HTML/JS arbitrario inyectado previamente en la API mock.
-// Cuando el frontend asigna este valor a innerHTML, el navegador lo ejecuta.
+    $campos_esperados = [
+        'nombre'      => 'string',
+        'descripcion' => 'string',
+        'url'         => 'string',
+        'lenguaje'    => 'string',
+    ];
+    foreach ($campos_esperados as $campo => $tipo) {
+        if (!array_key_exists($campo, $repo) || gettype($repo[$campo]) !== $tipo) {
+            return false;
+        }
+    }
+
+    if (!filter_var($repo['url'], FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $repo['url'])) {
+        return false;
+    }
+
+    return true;
+}
+
+$repos_validados = array_values(array_filter($repos, 'repo_es_valido'));
 
 // ---------------------------------------------------------------------------
 // Respuesta final al cliente
 // ---------------------------------------------------------------------------
 
-// Se construye el payload de respuesta combinando el perfil del usuario y los
-// repositorios de la API, todos sin sanitizar.
+// CORREGIDO (antes: CWE-79 Cross-Site Scripting). Codifica recursivamente los
+function escapar_valores_recursivo($valor) {
+    if (is_array($valor)) {
+        return array_map('escapar_valores_recursivo', $valor);
+    }
+    if (is_string($valor)) {
+        return htmlspecialchars($valor, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+    return $valor;
+}
+
 $payload = [
-    'perfil' => $perfil,     // Datos del perfil (de usuarios.txt, sin sanitizar).
-    'repos'  => $repos,      // Repositorios de la API (sin sanitizar — vector XSS).
+    'perfil' => $perfil !== null ? escapar_valores_recursivo($perfil) : null,
+    'repos'  => escapar_valores_recursivo($repos_validados),
 ];
 
-// VULNERABLE: json_encode() serializa los datos incluyendo cualquier payload
-// malicioso que haya en $repos['descripcion']. El frontend recibirá este JSON,
-// lo parseará y asignará los campos directamente a innerHTML, ejecutando el
-// código inyectado en el navegador del usuario/víctima.
 http_response_code(200);
 echo json_encode($payload);
