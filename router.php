@@ -12,6 +12,17 @@ $staticExtensions = ['css', 'js', 'png', 'jpg', 'ico', 'svg', 'json'];
 $ext = pathinfo($uri, PATHINFO_EXTENSION);
 
 if (in_array($ext, $staticExtensions)) {
+    // NOTA DE SEGURIDAD (CWE-22, Path Traversal): la ruta del archivo se arma
+    // concatenando directamente la URI ya decodificada con urldecode(). Una
+    // peticion con secuencias ../ (o codificadas como %2e%2e%2f, que urldecode
+    // convierte antes de esta linea) podria intentar salirse de /frontend y
+    // alcanzar archivos de otras carpetas del proyecto.
+    // Que lo limita hoy: el filtro previo por extension solo deja pasar css,
+    // js, png, jpg, ico, svg y json, y el servidor embebido de PHP normaliza
+    // buena parte de las rutas, por lo que no hay explotacion conocida aqui.
+    // MEJORA RECOMENDADA (rama asegurada): resolver con realpath() y confirmar
+    // que el resultado sigue estando dentro de realpath(__DIR__ . '/frontend')
+    // antes de hacer readfile(), en lugar de depender del filtro de extension.
     $file = __DIR__ . '/frontend' . $uri;
     if (file_exists($file)) {
         $mimeTypes = [
