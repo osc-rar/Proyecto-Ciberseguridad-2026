@@ -132,6 +132,10 @@ Marcar cada item antes de iniciar la demostracion:
 - [ ] `curl http://192.168.56.100:8080/` devuelve HTML del frontend
 - [ ] `curl http://192.168.56.100:8080/backend/ver_portafolio.php` devuelve JSON con repos
 - [ ] Navegador en Kali abre `http://192.168.56.100:8080/` correctamente
+- [ ] En el navegador, el boton **"Cargar Portafolio"** muestra los 2 repos (valida
+      que `frontend/script.js` use `const API_BASE = window.location.origin;`)
+- [ ] `php -i | grep allow_url_fopen` devuelve `On` (necesario para el SSRF y para
+      que `ver_portafolio.php` consuma la API)
 - [ ] Archivo `data/usuarios.txt` vacio o con datos de prueba limpios
 
 ## 7. Resetear el Entorno (Post-Demo)
@@ -162,3 +166,6 @@ curl -s http://localhost:8080/backend/ver_portafolio.php | python3 -m json.tool
 | Portafolio devuelve error 502 | API mock caida o puerto incorrecto | Verificar que mock corre en 5000 y `ver_portafolio.php` apunta a `:5000` |
 | No hay conectividad entre VMs | Red mal configurada | Verificar adaptador host-only en VirtualBox/VMware |
 | `Permission denied` en usuarios.txt | Permisos del archivo | `chmod 666 data/usuarios.txt` |
+| El navegador no carga el portafolio ni crea perfiles (aunque `curl` sí funciona) | `frontend/script.js` apunta a un host fijo (`http://localhost:8080`) en vez del origen real | Dejar `const API_BASE = window.location.origin;` en la linea 1 de `frontend/script.js` |
+| El SSRF devuelve siempre `error_conexion` con URLs `http://` | `allow_url_fopen` deshabilitado en PHP | `php -i \| grep allow_url_fopen` debe ser `On`; si no, habilitarlo en `php.ini` (`allow_url_fopen = On`) y reiniciar el server PHP |
+| El XSS no dispara aunque la tarjeta se muestra | Payload `<script>` (no se ejecuta via `innerHTML`) o `onerror` con espacios sin comillas | Usar `<img src=x onerror=alert(document.domain)>` (ver [demo_xss_api.md](demo_xss_api.md)) |

