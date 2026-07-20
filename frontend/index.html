@@ -30,6 +30,19 @@
                 </div>
                 <div class="campo">
                     <label for="url_repositorio">URL del Repositorio *</label>
+                    <!--
+                        NOTA DE SEGURIDAD: este campo es el punto de entrada del
+                        ataque SSRF (OWASP API7:2023 / CWE-918) y esta declarado
+                        como type="text", por lo que el navegador acepta cualquier
+                        cadena (file:///etc/passwd, http://127.0.0.1:22, etc.).
+                        Usar type="url" daria una validacion basica de formato en
+                        el cliente y evitaria errores del usuario legitimo.
+                        IMPORTANTE: esa validacion NO sustituye a la del servidor.
+                        Cualquier control del navegador se puede saltar con curl o
+                        Burp; la defensa real es url_repositorio_es_segura() en
+                        backend/crear_perfil.php (allowlist de dominios, esquema
+                        http/https y bloqueo de IPs privadas/reservadas).
+                    -->
                     <input type="text" id="url_repositorio" name="url_repositorio" placeholder="https://github.com/usuario/repo" required>
                     <small>Introduce la URL de un repositorio para obtener su informacion.</small>
                 </div>

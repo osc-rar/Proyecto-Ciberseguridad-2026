@@ -50,10 +50,17 @@ btnCargarPortafolio.addEventListener('click', async () => {
 
         if (data.perfil) {
             perfilInfo.classList.add('visible');
-            // VULNERABLE (CWE-79): Se asignan los valores directamente a innerHTML
-            // sin escapar con textContent o DOMPurify. Si el perfil contiene HTML
-            // inyectado (por ejemplo en el nombre o la bio), el navegador lo renderiza.
-            // FALTA: usar textContent o sanitizar con DOMPurify antes de insertar.
+            // SEGURO EN ESTA RAMA (defensa del lado del servidor).
+            // Se sigue usando innerHTML, pero los datos ya llegan neutralizados:
+            // ver_portafolio.php valida el registro con perfil_es_valido() y luego
+            // aplica escapar_valores_recursivo(), que pasa htmlspecialchars() con
+            // ENT_QUOTES sobre todos los strings del perfil. Por eso un payload
+            // como <script>alert(1)</script> guardado en el nombre o la bio viaja
+            // como &lt;script&gt;... y el navegador lo pinta como texto inerte,
+            // sin ejecutarlo. La mitigacion de CWE-79 esta en el servidor.
+            // RECOMENDACION (opcional, defensa en profundidad): migrar a
+            // textContent o a la creacion de nodos con createElement, para no
+            // depender de que el escape del servidor se mantenga en el futuro.
             perfilInfo.innerHTML = `
                 <h3>${data.perfil.nombre} ${data.perfil.apellido}</h3>
                 <p>${data.perfil.bio}</p>
@@ -62,12 +69,18 @@ btnCargarPortafolio.addEventListener('click', async () => {
         }
 
         if (data.repos && data.repos.length > 0) {
-            // VULNERABLE (CWE-79): Los campos del repositorio se insertan directamente
-            // en innerHTML sin ningun escape. El campo 'descripcion' es el vector
-            // principal de ataque: si la API mock fue comprometida (mediante
-            // /update_repos), puede contener <script>alert('XSS')</script> o
-            // cualquier payload JavaScript que se ejecutara en el navegador.
-            // FALTA: usar textContent para cada campo o sanitizar con DOMPurify.
+            // SEGURO EN ESTA RAMA (defensa del lado del servidor).
+            // El campo 'descripcion' sigue siendo el vector principal: si la API
+            // mock es comprometida via POST /update_repos, puede devolver
+            // <script>alert('XSS')</script>. Sin embargo ver_portafolio.php ya no
+            // confia ciegamente en esa respuesta (OWASP API10:2023): filtra los
+            // elementos con repo_es_valido() -que ademas exige que 'url' sea una
+            // URL http/https valida, protegiendo el atributo href- y escapa todos
+            // los strings con escapar_valores_recursivo(). El payload llega
+            // codificado y se muestra como texto literal dentro de la tarjeta.
+            // RECOMENDACION (opcional, defensa en profundidad): construir las
+            // tarjetas con createElement + textContent, de modo que el frontend
+            // sea seguro por si mismo aunque cambie el contrato del backend.
             listaRepos.innerHTML = data.repos.map(repo => `
                 <div class="repo-card">
                     <h3>${repo.nombre}</h3>
