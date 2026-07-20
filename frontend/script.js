@@ -1,4 +1,10 @@
-const API_BASE = 'http://localhost:8080';
+// El frontend y el backend se sirven desde el mismo router.php (mismo origen),
+// por lo que la base de la API debe ser el origen REAL desde el que se abrio la
+// pagina. Hardcodear 'http://localhost:8080' rompia la app al accederla desde
+// otra maquina: en el navegador de Kali apuntando a la IP de la victima,
+// 'localhost' resuelve a la propia Kali (no al servidor victima) y los fetch
+// fallaban. window.location.origin funciona tanto en local como en las VMs.
+const API_BASE = window.location.origin;
 
 const formPerfil = document.getElementById('form-perfil');
 const resultadoCrear = document.getElementById('resultado-crear');
