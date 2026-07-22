@@ -9,7 +9,7 @@ riesgos del **OWASP API Security Top 10 (2023)**, especificamente:
 - **API10:2023** - Consumo No Seguro de APIs (Unsafe Consumption of APIs)
 
 > **ADVERTENCIA:** Esta aplicacion es vulnerable por diseno. Usar exclusivamente
-> en entornos controlados y aislados (VMs de laboratorio).
+> en entornos controlados y aislados (VMs de laboratorio) y como caso de estudio para el comportamiento de aplicaciones que cuenten con las vulnerabilidades mencionadas. La aplicación se diseno para ser alojada dentro de una VM con Ubuntu Server. 
 
 ## Estructura del Proyecto
 
