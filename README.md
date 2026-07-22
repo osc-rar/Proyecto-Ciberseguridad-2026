@@ -1,111 +1,89 @@
-# Proyecto-Ciberseguridad-2026
+# Proyecto Ciberseguridad 2026
 
-Proyecto de Ciberseguridad UCAB 2026.
+Esta es una aplicacion web hecha para aprender sobre dos vulnerabilidades de seguridad en APIs y como corregirlas, usando como sistema para evidenciarlo una aplicación web básica donde los usuarios pueden crear un perfil público para mostrar su experiencia en el campo de la informática. La aplicación tendrá dos funcionalidades principales que albergarán las vulnerabilidades. La publicación de los repositorios del usuario mediante el consumo de una API que contendrá la información y la capacidad de colocar su foto de perfil de forma automática agregando cualquier link que contenga un perfil del cual poder sacarla
 
-Aplicación web **intencionalmente vulnerable** que demuestra, de forma didáctica y
-en un laboratorio aislado, dos riesgos del **OWASP API Security Top 10 (2023)** y
-sus mitigaciones. El repositorio contiene la versión vulnerable, la versión
-asegurada y la validación de cierre que contrasta ambas.
+El codigo vive en las ramas: en `versión-vulnerable` esta la aplicacion tal como es insegura, y en `versión-asegurada` esta la misma aplicacion con las correcciones aplicadas
 
-> **ADVERTENCIA:** El código es vulnerable por diseño. Usar exclusivamente en
-> entornos controlados y aislados (VMs de laboratorio host-only) con el único propósito de probar y entender cómo funcionan estas dos vulnerabilidades dentro de una aplicación. Nunca exponer
-> los puertos 8080 o 5000 a redes públicas o de producción. Está principalmente disenada para ser alojada en una VM con Ubuntu Server.
+## 1. Stack tecnologico
 
-## ¿Qué es?
+Para poder desarrollar la idea anterior, estas son las tecnologias que usadas:
 
-Un portafolio de repositorios donde un usuario crea su perfil y consulta una lista
-de repositorios servida por una API externa. Ese flujo simple concentra dos
-vulnerabilidades reales de APIs, que un equipo Red Team explota y un equipo Blue
-Team corrige y verifica.
+- **PHP**: corre el backend y sirve el frontend usando el servidor embebido de PHP junto con el archivo `router.php`. Su elección viene debido a que permite concatenar variables directamente en las consultas o en el HTML de forma nativa e intuitiva, cumpliendo perfectamente con los requisitos de la rúbrica
+- **Python 3**: levanta una API simulada (`api/api_mock.py`) que devuelve la lista de repositorios que consume la aplicacion
+- **HTML, CSS y JavaScript**: forman el frontend (`frontend/index.html`, `frontend/styles.css`, `frontend/script.js`)
+- **Archivo de texto plano**: los perfiles de usuario se guardan en `data/usuarios.txt`, no se usa base de datos
+- **Infraestructura:** VirtualBox, con una máquina virtual atacante con Kali Linux y una máquina virtual víctima (Ubuntu Server) alojando los servicios
 
-## Las dos vulnerabilidades
+Los puertos que ocupa cada servicio son:
 
-| # | Vulnerabilidad | OWASP API Top 10 (2023) | CWE | Archivo |
-|---|---|---|---|---|
-| 1 | Server Side Request Forgery (SSRF) | API7:2023 | CWE-918 | `backend/crear_perfil.php` |
-| 2 | Consumo No Seguro de APIs → Cross-Site Scripting | API10:2023 | CWE-20 → CWE-79 | `backend/ver_portafolio.php`, `frontend/script.js` |
+| Servicio | Tecnologia | Puerto |
+|---|---|---|
+| Aplicacion PHP (frontend y backend) | PHP | 8080 |
+| API simulada | Python 3 | 5000 |
 
-- **SSRF:** el campo `url_repositorio` llega sin validar a `file_get_contents()`,
-  permitiendo forzar peticiones a servicios internos y leer archivos locales.
-- **Consumo No Seguro → XSS:** el backend confía ciegamente en la respuesta de una
-  API de terceros y el contenido se renderiza sin escapar, ejecutando JavaScript
-  en el navegador de la víctima.
+## 2. Manual de despliegue
 
-## Estructura del proyecto
+### Requisitos previos
 
-```
-├── api/api_mock.py              # API de terceros simulada (Python, puerto 5000)
-├── backend/
-│   ├── crear_perfil.php         # Endpoint del vector SSRF
-│   └── ver_portafolio.php       # Consumo de la API externa / renderizado
-├── frontend/
-│   ├── index.html               # UI del portafolio
-│   ├── script.js                # Renderizado del portafolio
-│   └── styles.css
-├── data/usuarios.txt            # Almacenamiento de perfiles
-├── router.php                   # Router para el servidor embebido de PHP
-└── docs/                        # Documentación técnica y guías de demo
-```
+Antes de empezar hay que tener instalado:
 
-## Inicio rápido
+- Python 3.8 o superior
+- PHP 8.0 o superior
+- Git
 
-Se necesitan dos terminales en la máquina que aloja la app:
+Se pueden revisar las versiones instaladas con estos comandos:
 
 ```bash
-# Terminal 1: API Mock
-python3 api/api_mock.py 5000
+python3 --version
+php --version
+```
 
-# Terminal 2: Aplicación PHP
+### Paso 1: Clonar la rama
+
+Se clona la rama que se quiere probar, por ejemplo la version vulnerable:
+
+```bash
+git clone -b versión-vulnerable https://github.com/osc-rar/Proyecto-Ciberseguridad-2026.git
+cd Proyecto-Ciberseguridad-2026
+```
+
+Para probar la version asegurada se usa el mismo comando pero cambiando el nombre de la rama por `versión-asegurada`
+
+### Paso 2: Preparar el archivo de datos
+
+Se crea la carpeta y el archivo donde se guardan los perfiles, por si todavia no existen:
+
+```bash
+mkdir -p data
+touch data/usuarios.txt
+```
+
+### Paso 3: Levantar la API en Python (puerto 5000)
+
+En una primera terminal se arranca la API simulada:
+
+```bash
+python3 api/api_mock.py 5000
+```
+
+Si todo sale bien aparece un mensaje avisando que la API esta corriendo en el puerto 5000
+
+### Paso 4: Levantar el servidor PHP (puerto 8080)
+
+En una segunda terminal, sin cerrar la primera, se arranca la aplicacion:
+
+```bash
 php -S 0.0.0.0:8080 router.php
 ```
 
-Abrir `http://localhost:8080/` en el navegador. Para el despliegue completo en
-VMs Kali + Ubuntu, ver las guías de cada rama más abajo.
+### Paso 5: Abrir la aplicacion
 
-## Ramas del repositorio
+Se abre el navegador en esta direccion:
 
-| Rama | Qué contiene |
-|---|---|
-| `main` | Punto de entrada del proyecto: este README y la validación de cierre. |
-| `versión-vulnerable` | Implementación con las vulnerabilidades intencionales y las guías de explotación (demos SSRF y XSS, payloads). |
-| `versión-asegurada` | Misma aplicación con las mitigaciones aplicadas (allowlist SSRF, validación y escape del consumo de API). |
-| `docs/documentacion-rama-vulnerable` | Documentación técnica de la versión vulnerable: arquitectura, endpoints, MITRE ATT&CK, flujo de datos, impacto y evidencias. |
-| `docs/comentarios-y-documentacion` | Documentación técnica de la versión asegurada: justificaciones OWASP/CWE de cada corrección. |
+```
+http://localhost:8080/
+```
 
-## Documentación clave
+Los dos servicios tienen que estar corriendo al mismo tiempo, porque el backend le pide la lista de repositorios a la API que esta en el puerto 5000
 
-Los enlaces usan URLs completas para que funcionen desde cualquier rama.
-
-### Versión vulnerable
-
-- [Flujo de datos de las vulnerabilidades](https://github.com/osc-rar/Proyecto-Ciberseguridad-2026/blob/docs/documentacion-rama-vulnerable/docs/FLUJO_DATOS.md)
-- [Arquitectura y componentes](https://github.com/osc-rar/Proyecto-Ciberseguridad-2026/blob/docs/documentacion-rama-vulnerable/docs/ARQUITECTURA_COMPONENTES.md)
-- [Inventario de endpoints](https://github.com/osc-rar/Proyecto-Ciberseguridad-2026/blob/docs/documentacion-rama-vulnerable/docs/INVENTARIO_ENDPOINTS.md)
-- [Metodología MITRE ATT&CK](https://github.com/osc-rar/Proyecto-Ciberseguridad-2026/blob/docs/documentacion-rama-vulnerable/docs/METODOLOGIA_MITRE_ATTACK.md)
-- [Análisis de impacto](https://github.com/osc-rar/Proyecto-Ciberseguridad-2026/blob/docs/documentacion-rama-vulnerable/docs/ANALISIS_IMPACTO.md)
-- [Evidencias de las pruebas](https://github.com/osc-rar/Proyecto-Ciberseguridad-2026/blob/docs/documentacion-rama-vulnerable/docs/EVIDENCIAS.md)
-- [Catálogo de payloads](https://github.com/osc-rar/Proyecto-Ciberseguridad-2026/blob/docs/documentacion-rama-vulnerable/docs/payloads.txt)
-- Guías de demo: [SSRF](https://github.com/osc-rar/Proyecto-Ciberseguridad-2026/blob/docs/documentacion-rama-vulnerable/docs/demo_ssrf.md) · [XSS vía API](https://github.com/osc-rar/Proyecto-Ciberseguridad-2026/blob/docs/documentacion-rama-vulnerable/docs/demo_xss_api.md)
-
-### Versión asegurada
-
-- [Documentación técnica de las mitigaciones (OWASP/CWE)](https://github.com/osc-rar/Proyecto-Ciberseguridad-2026/blob/docs/comentarios-y-documentacion/docs/DOCUMENTACION_TECNICA.md)
-
-### Validación de cierre
-
-- [VALIDACION_CIERRE.md](VALIDACION_CIERRE.md) — contraste payload a payload de cada
-  vulnerabilidad entre la versión vulnerable (exploit funciona) y la asegurada
-  (bloqueado/neutralizado), con la función real responsable de cada mitigación.
-
-## Equipo
-
-**Red Team (explotación)**
-
-- Levin Jiménez
-- Jesús Sayago
-
-**Blue Team (mitigación y verificación)**
-
-- Claudia López
-- Óscar Manrique
-- Juan Zamora
+> **Aviso**: esta aplicacion es vulnerable a proposito, solo se debe usar en un entorno aislado de laboratorio y nunca hay que exponer los puertos 8080 o 5000 a internet
