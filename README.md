@@ -8,8 +8,8 @@ sus mitigaciones. El repositorio contiene la versión vulnerable, la versión
 asegurada y la validación de cierre que contrasta ambas.
 
 > **ADVERTENCIA:** El código es vulnerable por diseño. Usar exclusivamente en
-> entornos controlados y aislados (VMs de laboratorio host-only). Nunca exponer
-> los puertos 8080 o 5000 a redes públicas o de producción.
+> entornos controlados y aislados (VMs de laboratorio host-only) con el único propósito de probar y entender cómo funcionan estas dos vulnerabilidades dentro de una aplicación. Nunca exponer
+> los puertos 8080 o 5000 a redes públicas o de producción. Está principalmente disenada para ser alojada en una VM con Ubuntu Server.
 
 ## ¿Qué es?
 
