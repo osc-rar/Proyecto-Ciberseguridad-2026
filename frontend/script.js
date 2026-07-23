@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8080';
+
 
 const formPerfil = document.getElementById('form-perfil');
 const resultadoCrear = document.getElementById('resultado-crear');
@@ -12,7 +12,7 @@ formPerfil.addEventListener('submit', async (e) => {
     const formData = new FormData(formPerfil);
 
     try {
-        const response = await fetch(`${API_BASE}/backend/crear_perfil.php`, {
+        const response = await fetch(`/backend/crear_perfil.php`, {
             method: 'POST',
             body: formData,
         });
@@ -34,7 +34,7 @@ formPerfil.addEventListener('submit', async (e) => {
 
 btnCargarPortafolio.addEventListener('click', async () => {
     try {
-        const response = await fetch(`${API_BASE}/backend/ver_portafolio.php`);
+        const response = await fetch(`/backend/ver_portafolio.php`);
         const data = await response.json();
 
         if (!response.ok) {
