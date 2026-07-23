@@ -64,11 +64,6 @@ const DOMINIOS_REPOSITORIO_PERMITIDOS = [
     'bitbucket.org', 'www.bitbucket.org',
 ];
 
-const ENDPOINTS_INTERNOS_PERMITIDOS = [
-    'localhost:5000',
-    '127.0.0.1:5000',
-];
-
 function url_repositorio_es_segura(string $url): bool {
     $partes = parse_url($url);
     if ($partes === false || empty($partes['host']) || empty($partes['scheme'])) {
@@ -83,10 +78,6 @@ function url_repositorio_es_segura(string $url): bool {
 
     $host = strtolower($partes['host']);
     $puerto = $partes['port'] ?? (strtolower($partes['scheme']) === 'https' ? 443 : 80);
-
-    if (in_array("$host:$puerto", ENDPOINTS_INTERNOS_PERMITIDOS, true)) {
-        return true;
-    }
 
     if (!in_array($host, DOMINIOS_REPOSITORIO_PERMITIDOS, true)) {
         return false;
